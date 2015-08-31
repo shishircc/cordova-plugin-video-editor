@@ -117,7 +117,7 @@ public class VideoEditor extends CordovaPlugin {
         final int outputHeight;
 
         //use thumbnail to estimate the aspect ratio
-        Bitmap thumbnail = ThumbnailUtils.createVideoThumbnail(srcVideoPath, MediaStore.Images.Thumbnails.MINI_KIND);
+        Bitmap thumbnail = ThumbnailUtils.createVideoThumbnail(videoSrcPath, MediaStore.Images.Thumbnails.MINI_KIND);
         final double thumbnailW = thumbnail.getWidth();
         final double thumbnailH = thumbnail.getHeight();
         final double ratioWbyH = thumbnailW /thumbnailH;
