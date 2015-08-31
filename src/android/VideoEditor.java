@@ -115,7 +115,21 @@ public class VideoEditor extends CordovaPlugin {
         // arbitrary values used for ffmpeg, tailor to your needs
         final int outputWidth;
         final int outputHeight;
-        
+
+        //use thumbnail to estimate the aspect ratio
+        Bitmap thumbnail = ThumbnailUtils.createVideoThumbnail(srcVideoPath, MediaStore.Images.Thumbnails.MINI_KIND);
+        final double thumbnailW = thumbnail.getWidth();
+        final double thumbnailH = thumbnail.getHeight();
+        final double ratioWbyH = thumbnailW /thumbnailH;
+        final double ratioHbyW = thumbnailH /thumbnailW;
+        final bool isPortrait = (ratioWbyH < 1);
+        final double widthMultiplier = (isPortrait)? ratioWbyH: 1;
+        final double heightMultiplier = (isPortrait)? 1: ratioHbyW;
+
+        final int LowDimension = 320;
+        final int MedDimension = 480;
+        final int HighDimension = 640;
+
         switch(outputType) {
             case QUICK_TIME:
                 outputExtension = ".mov";
@@ -134,17 +148,17 @@ public class VideoEditor extends CordovaPlugin {
         
         switch(videoQuality) {
             case LowQuality:
-                outputWidth = 320;
-                outputHeight = 320;
+                outputWidth = (int)(LowDimension*widthMultiplier);
+                outputHeight = (int)(LowDimension*heightMultiplier);
                 break;
             case MediumQuality:
-                outputWidth = 480;
-                outputHeight = 480;
+                outputWidth = (int)(MedDimension*widthMultiplier);
+                outputHeight = (int)(MedDimension*heightMultiplier);
                 break;
             case HighQuality:
             default:
-                outputWidth = 640;
-                outputHeight = 640;
+                outputWidth = (int)(HighDimension*widthMultiplier);
+                outputHeight = (int)(HighDimension*heightMultiplier);
                 break;
         }
         
@@ -199,9 +213,9 @@ public class VideoEditor extends CordovaPlugin {
                     Clip clipIn = new Clip(videoSrcPath);
                     
                     Clip clipOut = new Clip(outputFilePath);
-                    clipOut.videoCodec = "libx264";
+                    clipOut.videoCodec = "mpeg4";
                     clipOut.videoFps = "24"; // tailor this to your needs
-                    clipOut.videoBitrate = 512; // 512 kbps - tailor this to your needs
+                    clipOut.videoBitrate = 256; // 512 kbps - tailor this to your needs
                     clipOut.audioChannels = 1;
                     clipOut.width = outputWidth;
                     clipOut.height = outputHeight;
