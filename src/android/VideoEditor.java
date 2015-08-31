@@ -118,17 +118,18 @@ public class VideoEditor extends CordovaPlugin {
 
         //use thumbnail to estimate the aspect ratio
         Bitmap thumbnail = ThumbnailUtils.createVideoThumbnail(videoSrcPath, MediaStore.Images.Thumbnails.MINI_KIND);
-        final double thumbnailW = thumbnail.getWidth();
-        final double thumbnailH = thumbnail.getHeight();
-        final double ratioWbyH = thumbnailW /thumbnailH;
-        final double ratioHbyW = thumbnailH /thumbnailW;
-        final boolean isPortrait = (ratioWbyH < 1);
-        final double widthMultiplier = (isPortrait)? ratioWbyH: 1;
-        final double heightMultiplier = (isPortrait)? 1: ratioHbyW;
-
+        final double thumbnailW = thumbnail.getWidth(); //e.g. 320
+        final double thumbnailH = thumbnail.getHeight(); //e.g. 480
+        final double ratioWbyH = thumbnailW /thumbnailH; // 320/480
+        final double ratioHbyW = thumbnailH /thumbnailW; // 480/320
+        final boolean isPortrait = (ratioWbyH < 1); //true
+        final double multiplier = (isPortrait)? ratioHbyW: ratioWbyH; // 320/480
+        
         final int LowDimension = 320;
         final int MedDimension = 480;
         final int HighDimension = 640;
+        
+        Log.v(TAG, "Multiplier = "+ multiplier);
 
         switch(outputType) {
             case QUICK_TIME:
@@ -148,19 +149,21 @@ public class VideoEditor extends CordovaPlugin {
         
         switch(videoQuality) {
             case LowQuality:
-                outputWidth = (int)(LowDimension*widthMultiplier);
-                outputHeight = (int)(LowDimension*heightMultiplier);
+                outputWidth = (int)(LowDimension*(isPortrait?multiplier:1));
+                outputHeight = (int)(LowDimension*(isPortrait?1:multiplier));
                 break;
             case MediumQuality:
-                outputWidth = (int)(MedDimension*widthMultiplier);
-                outputHeight = (int)(MedDimension*heightMultiplier);
+                outputWidth = (int)(MedDimension*(isPortrait?multiplier:1));
+                outputHeight = (int)(MedDimension*(isPortrait?1:multiplier));
                 break;
             case HighQuality:
             default:
-                outputWidth = (int)(HighDimension*widthMultiplier);
-                outputHeight = (int)(HighDimension*heightMultiplier);
+                outputWidth = (int)(HighDimension*(isPortrait?multiplier:1));
+                outputHeight = (int)(HighDimension*(isPortrait?1:multiplier));
                 break;
         }
+        
+        Log.v(TAG, "Dimensions width="+outputWidth+" height="+outputHeight);
         
         final Context appContext = cordova.getActivity().getApplicationContext();
         final PackageManager pm = appContext.getPackageManager();
@@ -215,7 +218,7 @@ public class VideoEditor extends CordovaPlugin {
                     Clip clipOut = new Clip(outputFilePath);
                     clipOut.videoCodec = "mpeg4";
                     clipOut.videoFps = "24"; // tailor this to your needs
-                    clipOut.videoBitrate = 256; // 512 kbps - tailor this to your needs
+                    clipOut.videoBitrate = 512; // 512 kbps - tailor this to your needs
                     clipOut.audioChannels = 1;
                     clipOut.width = outputWidth;
                     clipOut.height = outputHeight;
