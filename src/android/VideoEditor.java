@@ -122,7 +122,7 @@ public class VideoEditor extends CordovaPlugin {
         final double thumbnailH = thumbnail.getHeight();
         final double ratioWbyH = thumbnailW /thumbnailH;
         final double ratioHbyW = thumbnailH /thumbnailW;
-        final bool isPortrait = (ratioWbyH < 1);
+        final boolean isPortrait = (ratioWbyH < 1);
         final double widthMultiplier = (isPortrait)? ratioWbyH: 1;
         final double heightMultiplier = (isPortrait)? 1: ratioHbyW;
 
