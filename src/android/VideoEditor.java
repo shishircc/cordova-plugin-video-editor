@@ -12,6 +12,8 @@ import java.util.Locale;
 
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CallbackContext;
+import org.apache.cordova.PluginResult;
+import org.apache.cordova.PluginResult.Status;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -46,16 +48,16 @@ public class VideoEditor extends CordovaPlugin {
     private static final String TAG = "VideoEditor";
 
     private CallbackContext callback;
-    
+
     private static final int HighQuality = 0;
     private static final int MediumQuality = 1;
     private static final int LowQuality = 2;
-    
+
     private static final int M4V = 0;
     private static final int MPEG4 = 1;
     private static final int M4A = 2;
     private static final int QUICK_TIME = 3;
-    
+
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
         Log.d(TAG, "execute method starting");
@@ -90,7 +92,7 @@ public class VideoEditor extends CordovaPlugin {
          optimizeForNetworkUse: optimize for network use
          saveToLibrary: bool - save to gallery
          */
-        
+
         JSONObject options = args.optJSONObject(0);
         Log.d(TAG, "options: " + options.toString());
 
@@ -100,17 +102,17 @@ public class VideoEditor extends CordovaPlugin {
             callback.error("input video does not exist.");
             return;
         }
-                        
+
         final String videoSrcPath = inFile.getAbsolutePath();
         final String outputFileName = options.optString(
-            "outputFileName", 
+            "outputFileName",
             new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ENGLISH).format(new Date())
         );
         final int videoQuality = options.optInt("quality", HighQuality);
         final int outputType = options.optInt("outputFileType", MPEG4);
-        
+
         Log.d(TAG, "videoSrcPath: " + videoSrcPath);
-                        
+
         String outputExtension;
         // arbitrary values used for ffmpeg, tailor to your needs
         final int outputWidth;
@@ -124,11 +126,11 @@ public class VideoEditor extends CordovaPlugin {
         final double ratioHbyW = thumbnailH /thumbnailW; // 480/320
         final boolean isPortrait = (ratioWbyH < 1); //true
         final double multiplier = (isPortrait)? ratioHbyW: ratioWbyH; // 320/480
-        
+
         final int LowDimension = 320;
         final int MedDimension = 480;
         final int HighDimension = 640;
-        
+
         Log.v(TAG, "Multiplier = "+ multiplier);
 
         switch(outputType) {
@@ -146,7 +148,7 @@ public class VideoEditor extends CordovaPlugin {
                 outputExtension = ".mp4";
                 break;
         }
-        
+
         switch(videoQuality) {
             case LowQuality:
                 outputWidth = (int)(LowDimension*(isPortrait?multiplier:1));
@@ -162,12 +164,12 @@ public class VideoEditor extends CordovaPlugin {
                 outputHeight = (int)(HighDimension*(isPortrait?1:multiplier));
                 break;
         }
-        
+
         Log.v(TAG, "Dimensions width="+outputWidth+" height="+outputHeight);
-        
+
         final Context appContext = cordova.getActivity().getApplicationContext();
         final PackageManager pm = appContext.getPackageManager();
-        
+
         ApplicationInfo ai;
         try {
             ai = pm.getApplicationInfo(cordova.getActivity().getPackageName(), 0);
@@ -175,46 +177,46 @@ public class VideoEditor extends CordovaPlugin {
             ai = null;
         }
         final String appName = (String) (ai != null ? pm.getApplicationLabel(ai) : "Unknown");
-        
+
         final boolean saveToLibrary = options.optBoolean("saveToLibrary", true);
         File mediaStorageDir;
-        
+
         if (saveToLibrary) {
             mediaStorageDir = new File(
                 Environment.getExternalStorageDirectory() + "/Movies",
                 appName
-            );  
+            );
         } else {
             mediaStorageDir = new File(appContext.getExternalCacheDir().getPath());
         }
-        
+
         if (!mediaStorageDir.exists()) {
             if (!mediaStorageDir.mkdir()) {
                 callback.error("Can't access or make Movies directory");
                 return;
             }
         }
-        
+
         final String outputFilePath =  new File(
             mediaStorageDir.getPath(),
             "VID_" + outputFileName + outputExtension
         ).getAbsolutePath();
-        
+
         Log.v(TAG, "outputFilePath: " + outputFilePath);
-        
+
         final double videoDuration = options.optDouble("duration", 0);
-       
+
         cordova.getThreadPool().execute(new Runnable() {
-            public void run() {             
-                            
+            public void run() {
+
                  try {
                     File tempFile = File.createTempFile("ffmpeg", null, appContext.getCacheDir());
                     FfmpegController ffmpegController = new FfmpegController(appContext, tempFile);
-                    
-                    TranscodeCallback tcCallback = new TranscodeCallback();
-                    
+
+                    TranscodeCallback tcCallback = new TranscodeCallback(callback);
+
                     Clip clipIn = new Clip(videoSrcPath);
-                    
+
                     Clip clipOut = new Clip(outputFilePath);
                     clipOut.videoCodec = "mpeg4";
                     clipOut.videoFps = "24"; // tailor this to your needs
@@ -223,18 +225,18 @@ public class VideoEditor extends CordovaPlugin {
                     clipOut.width = outputWidth;
                     clipOut.height = outputHeight;
                     clipOut.duration = videoDuration;
-                    
+
                     ffmpegController.processVideo(clipIn, clipOut, true, tcCallback);
 
                     Log.d(TAG, "ffmpeg finished");
-                    
+
                     File outFile = new File(outputFilePath);
                     if (!outFile.exists()) {
                         Log.d(TAG, "outputFile doesn't exist!");
                         callback.error("an error ocurred during transcoding");
                         return;
                     }
-                                        
+
                     // make the gallery display the new file if saving to library
                     if (saveToLibrary) {
                         // remove the original input file when saving to gallery
@@ -242,13 +244,13 @@ public class VideoEditor extends CordovaPlugin {
                         if (!inFile.delete()) {
                             Log.d(TAG, "unable to delete in file");
                         }
-                        
+
                         Intent scanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
                         scanIntent.setData(Uri.fromFile(inFile));
                         scanIntent.setData(Uri.fromFile(outFile));
                         appContext.sendBroadcast(scanIntent);
                     }
-                    
+
                     callback.success(outputFilePath);
                 } catch (Throwable e) {
                     Log.d(TAG, "transcode exception ", e);
@@ -257,12 +259,28 @@ public class VideoEditor extends CordovaPlugin {
             }
         });
     }
-    
+
     private class TranscodeCallback implements ShellCallback {
+
+    	private CallbackContext _callback;
+
+    	public TranscodeCallback(CallbackContext callback){
+    		_callback = callback;
+    	}
 
         @Override
         public void shellOut(String shellLine) {
             Log.v(TAG, "shellOut: " + shellLine);
+            PluginResult result = null;
+			try {
+				result = new PluginResult(Status.OK, new JSONObject("{progress:\"1\"}"));
+				result.setKeepCallback(true);
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			Log.v(TAG,"debug -"+result);
+            _callback.sendPluginResult(result);
         }
 
         @Override
